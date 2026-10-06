@@ -82,9 +82,122 @@ Connecting to AAP requires specifying authentication variables (the ones prefixe
 
 ## Testing
 
-This collection is tested using integration tests which can be called via `ansible-test integration`. If you wish to run the tests manually, we recommend using the parent Makefile via `make collection-test`. It will require a running version of Ansible Automation Platform.
+### Unit and Sanity Tests
 
-The collection is tested against current version of Ansible Automation Platform.
+The collection includes comprehensive unit tests and sanity tests that run automatically on every PR:
+
+```bash
+# Run unit tests
+pytest tests/unit -v
+
+# Run sanity tests
+ansible-test sanity --docker
+
+# Run all molecule tests
+molecule test -s <scenario_name>
+```
+
+### Integration Tests
+
+Integration tests validate modules against a live Ansible Automation Platform instance. These tests require AAP credentials and are run in three connection modes: `local`, `http-direct`, and `http-persistent`.
+
+#### Running Integration Tests Locally
+
+**Prerequisites:**
+- Running Ansible Automation Platform instance (2.7+)
+- Valid AAP credentials with admin permissions
+- Python 3.11+
+- ansible-core 2.16+
+
+**Run all integration tests:**
+
+```bash
+# Set AAP connection details
+export AAP_HOSTNAME=your-aap-hostname
+export AAP_USERNAME=your-username
+export AAP_PASSWORD=your-password
+
+# Run integration tests (default: http-persistent mode)
+make collection-test
+
+# Or specify connection mode
+make collection-test CONNECTION_MODE=local
+make collection-test CONNECTION_MODE=http-direct
+make collection-test CONNECTION_MODE=http-persistent
+```
+
+**Run specific integration test:**
+
+```bash
+ansible-test integration organizations_test --docker
+ansible-test integration teams_test users_test --docker
+```
+
+#### Running Integration Tests in CI
+
+Integration tests in CI run against a live AAP instance and require the **"safe to test"** label.
+
+**For contributors with repository permissions:**
+
+1. Ensure all pre-merge checks pass (unit, sanity, linting)
+2. Verify PR doesn't modify workflow files or credential-handling code
+3. Apply the **"safe to test"** label to the PR
+4. Integration tests will run automatically in all three connection modes
+5. Monitor results in the PR checks
+
+**For contributors without label permissions:**
+
+If you don't have permissions to add the "safe to test" label:
+
+1. Request integration tests in a PR comment: `@ansible/platform-maintainers please run integration tests`
+2. A collection maintainer will review your PR and apply the label if appropriate
+3. Integration tests will run once the label is applied
+
+**Security Note:** The "safe to test" label triggers workflows with access to AAP credentials. Maintainers review PRs before applying this label to ensure no malicious code is executed.
+
+#### Integration Test Coverage
+
+- **Pre-label checks (automatic):** Unit tests, sanity tests (all Ansible versions), linting, molecule tests
+- **Post-label checks (manual approval):** Integration tests against live AAP in all connection modes
+
+#### Branch-Specific Testing
+
+The collection maintains multiple branches for different AAP versions. Integration tests vary by branch:
+
+**`devel` branch:**
+- Tests against: **AAP 2.7+** (latest features)
+- Connection modes: `local`, `http-direct`, `http-persistent`
+- Uses Gateway API (`/api/gateway/v1/`)
+- Tests new features before backporting to stable branches
+- Python: 3.11+
+- ansible-core: 2.16+
+
+**`stable-2.7` branch:**
+- Tests against: **AAP 2.7.x**
+- Connection modes: `local`, `http-direct`, `http-persistent`
+- Uses Gateway API (`/api/gateway/v1/`)
+- Backported features from devel (after stabilization)
+- Python: 3.11+
+- ansible-core: 2.16+
+
+**`stable-2.6` branch:**
+- Tests against: **AAP 2.6.x**
+- Connection modes: `local`, `http-direct` (http-persistent not supported)
+- Uses Gateway API (`/api/gateway/v1/`)
+- Bug fixes only (feature development frozen)
+- Python: 3.11+
+- ansible-core: 2.16+
+
+**When contributing:**
+- **New features:** Target `devel` branch
+- **Bug fixes for AAP 2.7:** Target `devel`, will be backported to `stable-2.7`
+- **Bug fixes for AAP 2.6:** Target `stable-2.6` directly (or request backport)
+
+Integration tests for each branch run against the corresponding AAP version to ensure compatibility.
+
+See the [E2E Test Suite Documentation](https://aap-cac-e2e-test-suite-29237a.pages.redhat.com/) for additional end-to-end testing guidance.
+
+The collection is tested against the current version of Ansible Automation Platform.
 
 ## Support
 
